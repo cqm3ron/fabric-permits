@@ -1,0 +1,8 @@
+{
+  "parent": "permits:item/template_permit",
+  "textures": {
+    "0": "permits:item/blank_permit/scroll_blank",
+    "2": "permits:item/blank_permit/bottom_blank",
+    "3": "permits:item/blank_permit/badge_blank"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "parent": "permits:item/template_permit",
+  "textures": {
+    "0": "permits:item/diamond_permit/scroll_diamond",
+    "2": "permits:item/diamond_permit/bottom_diamond",
+    "3": "permits:item/diamond_permit/badge_diamond"
+  }
+}

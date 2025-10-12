@@ -1,0 +1,8 @@
+{
+  "parent": "permits:item/template_permit",
+  "textures": {
+    "0": "permits:item/kermit_permit/scroll_kermit",
+    "2": "permits:item/kermit_permit/bottom_kermit",
+    "3": "permits:item/kermit_permit/badge_kermit"
+  }
+}
