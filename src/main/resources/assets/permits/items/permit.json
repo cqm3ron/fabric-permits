@@ -1,0 +1,10 @@
+{
+  "model": {
+    "type": "minecraft:condition",
+    "property": "minecraft:component",
+    "predicate": "permits:PERMIT_RARITY",
+    "value": "blank",
+    "on_true": "permits:item/blank_permit",
+    "on_false": ""
+  }
+}

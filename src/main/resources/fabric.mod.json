@@ -1,0 +1,44 @@
+{
+	"schemaVersion": 1,
+	"id": "permits",
+	"version": "${version}",
+	"name": "permits",
+	"description": "A cool mod that adds permits!",
+	"authors": [
+		"Me!"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/permits/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"cqm3ron.permits.Permits"
+		],
+		"client": [
+			"cqm3ron.permits.PermitsClient"
+		],
+		"fabric-datagen": [
+			"cqm3ron.permits.PermitsDataGenerator"
+		]
+	},
+	"mixins": [
+		"permits.mixins.json",
+		{
+			"config": "permits.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.17.3",
+		"minecraft": "~1.21.10",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		
+	}
+}
