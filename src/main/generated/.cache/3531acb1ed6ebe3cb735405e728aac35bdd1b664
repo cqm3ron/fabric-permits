@@ -1,4 +1,7 @@
 // 1.21.10	-999999999-01-01T00:00:00	permits/Model Definitions
-703b1731066e5cbf98b8c9442c7c68e07f22d8fc assets/permits/items/permit.json
-783ca77e8ef6a711ca24c5138c84bc6a8a1bfe51 assets/permits/models/item/permit.json
-cb31b35a6d4d4ce4cbde73a0025ecde9756c2c6e assets/permits/models/item/permit_false.json
+c6168fb9eee5dd71c4b4b6a3c7b418f604b2acdf assets/permits/items/permit.json
+07acbe4ab05d8ab026779066740fcf88f08dbe63 assets/permits/models/blank_permit.json
+a06ef290bd2c1ea6419e917272f4ef4d19b7ea62 assets/permits/models/diamond_permit.json
+7a78ee350ee415f29e68cbe7e07195ca6325119b assets/permits/models/gold_permit.json
+df04d61ef81a4cae4a7f79dcc6068ca0f4709991 assets/permits/models/iron_permit.json
+982633cbb0bc423ed7b497117e3bd54c70824710 assets/permits/models/kermit_permit.json

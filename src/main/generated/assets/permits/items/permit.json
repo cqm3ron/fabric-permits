@@ -1,16 +1,41 @@
 {
   "model": {
-    "type": "minecraft:condition",
-    "on_false": {
+    "type": "minecraft:select",
+    "cases": [
+      {
+        "model": {
+          "type": "minecraft:model",
+          "model": "permits:iron_permit"
+        },
+        "when": "iron"
+      },
+      {
+        "model": {
+          "type": "minecraft:model",
+          "model": "permits:gold_permit"
+        },
+        "when": "gold"
+      },
+      {
+        "model": {
+          "type": "minecraft:model",
+          "model": "permits:diamond_permit"
+        },
+        "when": "diamond"
+      },
+      {
+        "model": {
+          "type": "minecraft:model",
+          "model": "permits:kermit_permit"
+        },
+        "when": "kermit"
+      }
+    ],
+    "component": "permits:permit_rarity",
+    "fallback": {
       "type": "minecraft:model",
-      "model": "permits:item/permit"
+      "model": "permits:blank_permit"
     },
-    "on_true": {
-      "type": "minecraft:model",
-      "model": "permits:item/permit_false"
-    },
-    "predicate": "minecraft:custom_data",
-    "property": "minecraft:component",
-    "value": "{permit_rarity:\"iron\"}"
+    "property": "minecraft:component"
   }
 }
