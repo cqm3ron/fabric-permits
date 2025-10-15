@@ -12,21 +12,26 @@ import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.command.argument.IdentifierArgumentType;
 import net.minecraft.command.argument.ItemStackArgumentType;
-import net.minecraft.component.Component;
 import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.EquippableComponent;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import cqm3ron.permits.item.ModItems;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 
+import java.awt.*;
 import java.text.Normalizer;
 import java.util.*;
+import java.util.List;
 
 import static cqm3ron.permits.component.ModDataComponentTypes.PERMIT_OWNER;
 import static cqm3ron.permits.component.ModDataComponentTypes.PERMIT_RARITY;
@@ -38,15 +43,31 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
 
 
     public static <list> void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess) {
+
         dispatcher.register(
             CommandManager.literal("permit")
-            .requires(cs -> cs.hasPermissionLevel(2))
-
             .then(CommandManager.literal("give")
-                .executes(context -> {
+                    .requires(cs -> cs.hasPermissionLevel(2))
+                    .executes(context -> {
                     var player = context.getSource().getPlayer();
                     assert player != null;
-                    player.giveOrDropStack(new ItemStack(ModItems.PERMIT, 1));
+                    ItemStack permit = new ItemStack(ModItems.PERMIT, 1);
+
+                    permit.set(DataComponentTypes.EQUIPPABLE, new EquippableComponent(
+                            EquipmentSlot.HEAD,                                     // slot
+                            RegistryEntry.of(SoundEvents.ITEM_ARMOR_EQUIP_GENERIC.value()), // equip sound
+                            Optional.empty(),                                       // assetId
+                            Optional.empty(),                                       // camera overlay
+                            Optional.empty(),                                       // allowed entities
+                            true,                                                   // dispensable
+                            true,                                                   // swappable
+                            true,                                                   // damage on hurt
+                            true,                                                   // equip on interact
+                            false,                                                  // can be sheared
+                            RegistryEntry.of(SoundEvents.ITEM_SHEARS_SNIP)         // shearing sound
+                    ));
+
+                    player.giveOrDropStack(permit);
                     return 1;
                 })
             )
@@ -102,33 +123,44 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
                                         // Get the target player
                                         var target = EntityArgumentType.getPlayer(context, "target");
 
-                                        if (target == sender) {
-                                            context.getSource().sendError(Text.literal("§cYou cannot trade with yourself."));
-                                            return 0;
+                                        try {
+                                            if (heldStack.get(PERMIT_OWNER) == null){
+                                                context.getSource().sendError(Text.literal("§cYou cannot trade an unclaimed permit."));
+                                                return 0;
+                                            }
+
+                                            if (!Objects.equals(heldStack.get(PERMIT_OWNER).toLowerCase(), sender.getStringifiedName().toLowerCase())){
+                                                context.getSource().sendError(Text.literal("§cYou must own the permit to trade it."));
+                                                return 0;
+                                            }
+
+                                            if (target == sender) {
+                                                context.getSource().sendError(Text.literal("§cYou cannot trade with yourself."));
+                                                return 0;
+                                            }
+
+                                            // Remove the permit from sender's hand
+                                            sender.setStackInHand(sender.getActiveHand(), ItemStack.EMPTY);
+
+                                            // Update PERMIT_OWNER to target
+                                            heldStack.set(PERMIT_OWNER, target.getStringifiedName());
+
+                                            // Try to give it to target's inventory
+                                            boolean added = target.getInventory().insertStack(heldStack);
+                                            if (!added) {
+                                                // Inventory full → drop on ground in front of target
+                                                target.dropItem(heldStack, false);
+                                            }
+
+                                            // Feedback messages
+                                            context.getSource().sendFeedback(
+                                                    () -> Text.literal("§aTraded permit to " + target.getStringifiedName()), false);
+                                            target.sendMessage(Text.literal("§aYou received a permit from " + sender.getStringifiedName()), false);
+
                                         }
-
-                                        if (heldStack.get(PERMIT_OWNER) != target.getStringifiedName()){
-                                            context.getSource().sendError(Text.literal("§cYou must own the permit to trade it."));
-                                            return 0;
+                                        catch (Exception ex){
+                                            context.getSource().sendError(Text.literal("§cError: ").append(Text.literal(ex.toString())));
                                         }
-
-                                        // Remove the permit from sender's hand
-                                        sender.setStackInHand(sender.getActiveHand(), ItemStack.EMPTY);
-
-                                        // Update PERMIT_OWNER to target
-                                        heldStack.set(PERMIT_OWNER, target.getStringifiedName());
-
-                                        // Try to give it to target's inventory
-                                        boolean added = target.getInventory().insertStack(heldStack);
-                                        if (!added) {
-                                            // Inventory full → drop on ground in front of target
-                                            target.dropItem(heldStack, false);
-                                        }
-
-                                        // Feedback messages
-                                        context.getSource().sendFeedback(
-                                                () -> Text.literal("§aTraded permit to " + target.getStringifiedName()), false);
-                                        target.sendMessage(Text.literal("§aYou received a permit from " + sender.getStringifiedName()), false);
 
                                         return 1;
                                     })
@@ -137,6 +169,7 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
 
 
                     .then(CommandManager.literal("name")
+                            .requires(cs -> cs.hasPermissionLevel(2))
                             // handle calling /permit name with no name provided
                             .executes(context -> {
                                 context.getSource().sendError(Text.literal("§cUsage: /permit name <name>"));
@@ -203,6 +236,7 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
 
 
                     .then(CommandManager.literal("add")
+                            .requires(cs -> cs.hasPermissionLevel(2))
                             .then(CommandManager.argument("item", ItemStackArgumentType.itemStack(registryAccess))
                                     .suggests((context, builder) -> {
                                         var player = context.getSource().getPlayer();
@@ -269,6 +303,7 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
 
 
                     .then(CommandManager.literal("rarity")
+                            .requires(cs -> cs.hasPermissionLevel(2))
                             .then(CommandManager.argument("permit_rarity", StringArgumentType.word())
                                     .suggests(RARITY_SUGGESTIONS)
                                     .executes(context -> {
