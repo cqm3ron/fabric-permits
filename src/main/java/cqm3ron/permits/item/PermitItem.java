@@ -8,9 +8,7 @@ import net.minecraft.item.tooltip.TooltipType;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
-import java.text.Normalizer;
 import java.util.List;
-import java.util.UUID;
 import java.util.function.Consumer;
 
 public class PermitItem extends Item {
@@ -33,7 +31,7 @@ public class PermitItem extends Item {
         boolean showItems = false;
         List<Item> items = stack.get(ModDataComponentTypes.PERMIT_ITEMS);
         assert items != null;
-        if (items != null && !items.isEmpty()){
+        if (!items.isEmpty()){
             showItems = true;
         }
 

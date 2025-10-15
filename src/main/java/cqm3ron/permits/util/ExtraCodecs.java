@@ -7,7 +7,7 @@ import net.minecraft.util.Identifier;
 
 public class ExtraCodecs {
     public static final Codec<Item> ITEM_CODEC = Identifier.CODEC.xmap(
-            id -> Registries.ITEM.get(id),
+            Registries.ITEM::get,
             Registries.ITEM::getId
     );
 

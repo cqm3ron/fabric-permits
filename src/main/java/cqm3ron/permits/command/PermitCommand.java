@@ -34,7 +34,7 @@ public class PermitCommand{
 private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS = (context, builder) -> CommandSource.suggestMatching(new String[]{"iron", "gold", "diamond"}, builder);
 
 
-    public static <list> void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess) {
+    public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess) {
 
         dispatcher.register(
             CommandManager.literal("permit")
@@ -77,7 +77,7 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
                                         return 0;
                                     }
                                     else if (heldStack.getComponents().get(PERMIT_OWNER) != null){
-                                        if (!heldStack.getComponents().get(PERMIT_OWNER).isEmpty()){
+                                        if (!Objects.requireNonNull(heldStack.getComponents().get(PERMIT_OWNER)).isEmpty()){
                                             context.getSource().sendError(Text.literal(
                                                     "§cYou may not claim an owned permit."
                                             ));
@@ -121,7 +121,7 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
                                                 return 0;
                                             }
 
-                                            if (!Objects.equals(heldStack.get(PERMIT_OWNER).toLowerCase(), sender.getStringifiedName().toLowerCase())){
+                                            if (!Objects.equals(Objects.requireNonNull(heldStack.get(PERMIT_OWNER)).toLowerCase(), sender.getStringifiedName().toLowerCase())){
                                                 context.getSource().sendError(Text.literal("§cYou must own the permit to trade it."));
                                                 return 0;
                                             }
@@ -232,6 +232,7 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
                             .then(CommandManager.argument("item", ItemStackArgumentType.itemStack(registryAccess))
                                     .suggests((context, builder) -> {
                                         var player = context.getSource().getPlayer();
+                                        assert player != null;
                                         ItemStack heldStack = player.getMainHandStack();
                                         List<Item> alreadyAdded = heldStack.get(PERMIT_ITEMS);
                                         if (alreadyAdded == null) alreadyAdded = List.of();
@@ -261,6 +262,7 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
                                                 return 0;
                                             }
 
+                                            assert player != null;
                                             ItemStack heldStack = player.getMainHandStack();
                                             if (heldStack.isEmpty() || !heldStack.isOf(ModItems.PERMIT)) {
                                                 context.getSource().sendError(Text.literal("§cYou must be holding a permit item."));
@@ -285,8 +287,7 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
                                                     Text.literal("§aAdded " + Registries.ITEM.getId(itemToAdd) + " to permit."), false);
                                             return 1;
                                         } catch (Exception e) {
-                                            context.getSource().sendError(Text.literal("§cError: " + e.toString()));
-                                            ;
+                                            context.getSource().sendError(Text.literal("§cError: " + e));
                                         }
                                         return 1;
                                     })
