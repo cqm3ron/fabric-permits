@@ -1,11 +1,8 @@
 {
-    "item.permits.iron_permit": "Iron Permit",
-    "item.permits.gold_permit": "Gold Permit",
-    "item.permits.diamond_permit": "Diamond Permit",
-    "item.permits.blank_permit": "Blank Permit",
-    "item.permits.kermit_permit": "Kermit Permit",
+    "item.permits.permit": "Permit",
     "item.permits.permit.rarity": "%1$s Tier",
     "item.permits.permit.owner": "Owner",
     "item.permits.permit.unowned": "Unowned Permit",
-    "item.permits.permit.items": "Permit items"
+    "item.permits.permit.items": "Permit Items",
+    "item.permits.permit.no_items": "No Items"
 }

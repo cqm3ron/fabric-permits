@@ -28,7 +28,7 @@ public class Permits implements ModInitializer {
 		// Proceed with mild caution.
 		ModItems.registerModItems();
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-			PermitCommand.register(dispatcher);
+			PermitCommand.register(dispatcher, registryAccess);
 		});
 		ModDataComponentTypes.registerDataComponentTypes();
 	}

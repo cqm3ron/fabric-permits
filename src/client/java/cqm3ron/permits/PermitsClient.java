@@ -1,6 +1,7 @@
 package cqm3ron.permits;
 
 import net.fabricmc.api.ClientModInitializer;
+import net.minecraft.client.render.GameRenderer;
 
 public class PermitsClient implements ClientModInitializer {
 	@Override

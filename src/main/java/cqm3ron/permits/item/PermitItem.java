@@ -8,6 +8,8 @@ import net.minecraft.item.tooltip.TooltipType;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
+import java.text.Normalizer;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -24,9 +26,16 @@ public class PermitItem extends Item {
 
         boolean showOwner = false;
         String ownerName = stack.get(ModDataComponentTypes.PERMIT_OWNER);
-        if (ownerName != null){
+        if (ownerName != null) {
             showOwner = true;
-    }
+        }
+
+        boolean showItems = false;
+        List<Item> items = stack.get(ModDataComponentTypes.PERMIT_ITEMS);
+        assert items != null;
+        if (items != null && !items.isEmpty()){
+            showItems = true;
+        }
 
 
         Formatting colour = Formatting.WHITE;
@@ -37,14 +46,25 @@ public class PermitItem extends Item {
 
         tooltip.accept(Text.translatable("item.permits.permit.rarity", capitalised).formatted(colour));
         tooltip.accept(Text.empty());
-        tooltip.accept(Text.translatable("item.permits.permit.items").append(":").formatted(Formatting.GREEN));
-        tooltip.accept(Text.empty());
-        tooltip.accept(Text.empty());
+
+        if (showItems) {
+            tooltip.accept(Text.translatable("item.permits.permit.items").append(":").formatted(Formatting.GREEN));
+            for (Item item : items) {
+                tooltip.accept(Text.literal("- ").append(item.getName().copy().formatted(Formatting.WHITE)));
+            }
+            tooltip.accept(Text.empty());
+        }
+
+        else{
+            tooltip.accept(Text.translatable("item.permits.permit.no_items").formatted(Formatting.GREEN));
+            tooltip.accept(Text.empty());
+        }
+
         if (showOwner){
             tooltip.accept(Text.translatable("item.permits.permit.owner").append(Text.literal(": ")).formatted(Formatting.YELLOW).append(Text.literal(ownerName)));
         }
         else {
-            tooltip.accept(Text.translatable("item.permits.permit.unowned"));
+            tooltip.accept(Text.translatable("item.permits.permit.unowned").formatted(Formatting.YELLOW));
         }
     }
 
