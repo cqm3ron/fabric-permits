@@ -1,30 +1,94 @@
-# Automatically build the project and run any configured tests for every push
-# and submitted pull request. This can help catch issues that only occur on
-# certain platforms or Java versions, and provides a first line of defence
-# against bad commits.
+name: build-and-release
 
-name: build
-on: [pull_request, push]
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
-      - name: checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
-      - name: validate gradle wrapper
+
+      - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v4
-      - name: setup jdk
+
+      - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'microsoft'
-      - name: make gradle wrapper executable
+
+      - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
-      - name: build
-        run: ./gradlew build
-      - name: capture build artifacts
+
+      - name: Build project + sources jar
+        run: ./gradlew build sourcesJar
+
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Artifacts
-          path: build/libs/
+          name: build-artifacts
+          path: build/libs/*.jar
+
+  release:
+    runs-on: ubuntu-24.04
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: ./artifact
+
+      - name: Detect main jar and sources jar
+        id: detect
+        run: |
+          main_jar=$(ls ./artifact | grep -v 'sources' | head -n 1)
+          sources_jar=$(ls ./artifact | grep 'sources' | head -n 1)
+
+          if [ -z "$main_jar" ]; then
+            echo "ERROR: Main jar not found!"
+            exit 1
+          fi
+
+          if [ -z "$sources_jar" ]; then
+            echo "ERROR: Sources jar not found!"
+            exit 1
+          fi
+
+          echo "main_jar=$main_jar" >> $GITHUB_OUTPUT
+          echo "sources_jar=$sources_jar" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload main jar
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifact/${{ steps.detect.outputs.main_jar }}
+          asset_name: ${{ steps.detect.outputs.main_jar }}
+          asset_content_type: application/java-archive
+
+      - name: Upload sources jar
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifact/${{ steps.detect.outputs.sources_jar }}
+          asset_name: ${{ steps.detect.outputs.sources_jar }}
+          asset_content_type: application/java-archive
