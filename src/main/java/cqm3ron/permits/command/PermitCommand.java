@@ -126,10 +126,10 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
                                             return 0;
                                         }
 
-//                                        if (sender.getUuid().equals(target.getUuid())) {
-//                                            sender.sendMessage(Text.literal("§cYou cannot trade with yourself."));
-//                                            return 0;
-//                                        }
+                                        if (sender.getUuid().equals(target.getUuid())) {
+                                            sender.sendMessage(Text.literal("§cYou cannot trade with yourself."));
+                                            return 0;
+                                        }
 
                                         if (TRADE_REQUESTS.containsKey(target.getUuid())) {
                                             sender.sendMessage(Text.literal("§cThis player already has a pending trade request."));
