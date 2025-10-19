@@ -30,10 +30,11 @@ public class PermitItem extends Item {
 
         boolean showItems = false;
         List<Item> items = stack.get(ModDataComponentTypes.PERMIT_ITEMS);
-        assert items != null;
+        if (items == null) items = List.of();
         if (!items.isEmpty()){
             showItems = true;
         }
+
 
 
         Formatting colour = Formatting.WHITE;
