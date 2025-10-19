@@ -16,23 +16,30 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
-import cqm3ron.permits.item.ModItems;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import cqm3ron.permits.item.ModItems;
 
-import java.awt.*;
 import java.util.*;
-import java.util.List;
+import java.util.concurrent.*;
 
-import static cqm3ron.permits.component.ModDataComponentTypes.PERMIT_OWNER;
-import static cqm3ron.permits.component.ModDataComponentTypes.PERMIT_RARITY;
-import static cqm3ron.permits.component.ModDataComponentTypes.PERMIT_ITEMS;
+import static cqm3ron.permits.component.ModDataComponentTypes.*;
 
 public class PermitCommand{
 
 private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS = (context, builder) -> CommandSource.suggestMatching(new String[]{"iron", "gold", "diamond"}, builder);
 
+
+    // ----- TRADE SYSTEM -----
+    private static final Map<UUID, TradeRequest> TRADE_REQUESTS = new ConcurrentHashMap<>();
+    private static final ScheduledExecutorService TRADE_TIMEOUT_EXECUTOR = Executors.newSingleThreadScheduledExecutor();
+    private static final int TRADE_TIMEOUT_SECONDS = 30;
+
+    private record TradeRequest(UUID sender, long expiryTime) {}
 
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess) {
 
@@ -103,61 +110,71 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
                     .then(CommandManager.literal("trade")
                             .then(CommandManager.argument("target", EntityArgumentType.player())
                                     .executes(context -> {
-                                        var sender = context.getSource().getPlayer();
+                                        ServerPlayerEntity sender = context.getSource().getPlayer();
+                                        ServerPlayerEntity target = EntityArgumentType.getPlayer(context, "target");
                                         assert sender != null;
 
                                         ItemStack heldStack = sender.getMainHandStack();
                                         if (heldStack.isEmpty() || !heldStack.isOf(ModItems.PERMIT)) {
-                                            context.getSource().sendError(Text.literal("§cYou must be holding a permit to trade it."));
+                                            sender.sendMessage(Text.literal("§cYou must be holding a permit to trade it."));
                                             return 0;
                                         }
 
-                                        // Get the target player
-                                        var target = EntityArgumentType.getPlayer(context, "target");
-
-                                        try {
-                                            if (heldStack.get(PERMIT_OWNER) == null){
-                                                context.getSource().sendError(Text.literal("§cYou cannot trade an unclaimed permit."));
-                                                return 0;
-                                            }
-
-                                            if (!Objects.equals(Objects.requireNonNull(heldStack.get(PERMIT_OWNER)).toLowerCase(), sender.getStringifiedName().toLowerCase())){
-                                                context.getSource().sendError(Text.literal("§cYou must own the permit to trade it."));
-                                                return 0;
-                                            }
-
-                                            if (target == sender) {
-                                                context.getSource().sendError(Text.literal("§cYou cannot trade with yourself."));
-                                                return 0;
-                                            }
-
-                                            // Remove the permit from sender's hand
-                                            sender.setStackInHand(sender.getActiveHand(), ItemStack.EMPTY);
-
-                                            // Update PERMIT_OWNER to target
-                                            heldStack.set(PERMIT_OWNER, target.getStringifiedName());
-
-                                            // Try to give it to target's inventory
-                                            boolean added = target.getInventory().insertStack(heldStack);
-                                            if (!added) {
-                                                // Inventory full → drop on ground in front of target
-                                                target.dropItem(heldStack, false);
-                                            }
-
-                                            // Feedback messages
-                                            context.getSource().sendFeedback(
-                                                    () -> Text.literal("§aTraded permit to " + target.getStringifiedName()), false);
-                                            target.sendMessage(Text.literal("§aYou received a permit from " + sender.getStringifiedName()), false);
-
+                                        String owner = heldStack.get(PERMIT_OWNER);
+                                        if (owner == null || !owner.equalsIgnoreCase(sender.getStringifiedName())) {
+                                            sender.sendMessage(Text.literal("§cYou must own the permit to trade it."));
+                                            return 0;
                                         }
-                                        catch (Exception ex){
-                                            context.getSource().sendError(Text.literal("§cError: ").append(Text.literal(ex.toString())));
+
+//                                        if (sender.getUuid().equals(target.getUuid())) {
+//                                            sender.sendMessage(Text.literal("§cYou cannot trade with yourself."));
+//                                            return 0;
+//                                        }
+
+                                        if (TRADE_REQUESTS.containsKey(target.getUuid())) {
+                                            sender.sendMessage(Text.literal("§cThis player already has a pending trade request."));
+                                            return 0;
                                         }
+
+                                        long expiryTime = System.currentTimeMillis() + (TRADE_TIMEOUT_SECONDS * 1000L);
+                                        TRADE_REQUESTS.put(target.getUuid(), new TradeRequest(sender.getUuid(), expiryTime));
+
+                                        sender.sendMessage(Text.literal("§aTrade request sent to " + target.getName().getString()));
+
+                                        Text acceptMsg = Text.literal(sender.getName().getString() + " wants to trade a permit with you. ")
+                                                .append(
+                                                        Text.literal("[ACCEPT]")
+                                                                .styled(style -> style
+                                                                        .withColor(Formatting.GREEN)
+                                                                        .withBold(true)
+                                                                        .withClickEvent(new ClickEvent.RunCommand("/permit accept")))
+                                                )
+                                                .append(" ")
+                                                .append(
+                                                        Text.literal("[DENY]")
+                                                                .styled(style -> style
+                                                                        .withColor(Formatting.RED)
+                                                                        .withBold(true)
+                                                                        .withClickEvent(new ClickEvent.RunCommand("/permit deny")))
+                                                );
+
+                                        target.sendMessage(acceptMsg);
+
+                                        // schedule timeout
+                                        TRADE_TIMEOUT_EXECUTOR.schedule(() -> {
+                                            TradeRequest req = TRADE_REQUESTS.get(target.getUuid());
+                                            if (req != null && req.expiryTime == expiryTime) {
+                                                TRADE_REQUESTS.remove(target.getUuid());
+                                                sender.sendMessage(Text.literal("§cYour trade request to " + target.getName().getString() + " expired."));
+                                                target.sendMessage(Text.literal("§cTrade request from " + sender.getName().getString() + " expired."));
+                                            }
+                                        }, TRADE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
                                         return 1;
                                     })
                             )
                     )
+
 
 
                     .then(CommandManager.literal("name")
@@ -225,6 +242,62 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
                                     })
                             )
                     )
+
+                    .then(CommandManager.literal("accept")
+                            .executes(context -> {
+                                ServerPlayerEntity target = context.getSource().getPlayer();
+                                TradeRequest request = TRADE_REQUESTS.remove(target.getUuid());
+
+                                if (request == null) {
+                                    target.sendMessage(Text.literal("§cYou have no pending trade requests."));
+                                    return 0;
+                                }
+
+                                ServerPlayerEntity sender = target.getEntityWorld().getServer().getPlayerManager().getPlayer(request.sender());
+                                if (sender == null) {
+                                    target.sendMessage(Text.literal("§cThe sender is no longer online."));
+                                    return 0;
+                                }
+
+                                ItemStack heldStack = sender.getMainHandStack();
+                                if (heldStack.isEmpty() || !heldStack.isOf(ModItems.PERMIT)) {
+                                    target.sendMessage(Text.literal("§cThe sender no longer holds a permit."));
+                                    return 0;
+                                }
+
+                                heldStack.set(PERMIT_OWNER, target.getStringifiedName());
+                                sender.setStackInHand(sender.getActiveHand(), ItemStack.EMPTY);
+
+                                boolean added = target.getInventory().insertStack(heldStack);
+                                if (!added) target.dropItem(heldStack, false);
+
+                                sender.sendMessage(Text.literal("§aTrade successful!"));
+                                target.sendMessage(Text.literal("§aYou accepted the trade and received the permit."));
+
+                                return 1;
+                            })
+                    )
+
+                    .then(CommandManager.literal("deny")
+                            .executes(context -> {
+                                ServerPlayerEntity target = context.getSource().getPlayer();
+                                TradeRequest request = TRADE_REQUESTS.remove(target.getUuid());
+
+                                if (request == null) {
+                                    target.sendMessage(Text.literal("§cYou have no pending trade requests."));
+                                    return 0;
+                                }
+
+                                ServerPlayerEntity sender = target.getEntityWorld().getServer().getPlayerManager().getPlayer(request.sender());
+                                if (sender != null) {
+                                    sender.sendMessage(Text.literal("§cYour trade request was denied by " + target.getName().getString() + "."));
+                                }
+
+                                target.sendMessage(Text.literal("§cYou denied the trade request."));
+                                return 1;
+                            })
+                    )
+
 
 
                     .then(CommandManager.literal("add")
