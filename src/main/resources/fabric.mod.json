@@ -8,11 +8,7 @@
 		"cqm3ron",
         "7410"
 	],
-	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
-	},
-	"license": "CC0-1.0",
+	"license": "MIT",
 	"icon": "assets/permits/icon.png",
 	"environment": "*",
 	"entrypoints": {
@@ -26,20 +22,10 @@
 			"cqm3ron.permits.PermitsDataGenerator"
 		]
 	},
-	"mixins": [
-		"permits.mixins.json",
-		{
-			"config": "permits.client.mixins.json",
-			"environment": "client"
-		}
-	],
 	"depends": {
 		"fabricloader": ">=0.17.3",
 		"minecraft": "~1.21.10",
 		"java": ">=21",
 		"fabric-api": "*"
-	},
-	"suggests": {
-		
 	}
 }
