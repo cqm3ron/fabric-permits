@@ -2,7 +2,7 @@
 	"schemaVersion": 1,
 	"id": "permits",
 	"version": "${version}",
-	"name": "permits",
+	"name": "Permits",
 	"description": "A cool mod that adds permits!",
 	"authors": [
 		"cqm3ron",

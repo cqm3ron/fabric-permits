@@ -48,13 +48,20 @@ public class PermitItem extends Item {
 
         if (showItems) {
             tooltip.accept(Text.translatable("item.permits.permit.items").append(":").formatted(Formatting.GREEN));
+
+            items = items.stream()
+                    .sorted((a, b) -> {
+                        String nameA = a.getName().getString();
+                        String nameB = b.getName().getString();
+                        return nameA.compareToIgnoreCase(nameB);
+                    })
+                    .toList();
+
             for (Item item : items) {
                 tooltip.accept(Text.literal("- ").append(item.getName().copy().formatted(Formatting.WHITE)));
             }
             tooltip.accept(Text.empty());
-        }
-
-        else{
+        } else {
             tooltip.accept(Text.translatable("item.permits.permit.no_items").formatted(Formatting.GREEN));
             tooltip.accept(Text.empty());
         }
@@ -69,7 +76,6 @@ public class PermitItem extends Item {
 
     public PermitItem(Settings settings) {
         super(settings);
-
     }
 
 

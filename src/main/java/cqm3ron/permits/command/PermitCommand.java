@@ -8,18 +8,13 @@ import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.command.argument.ItemStackArgumentType;
 import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.EquippableComponent;
-import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
-import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.ClickEvent;
-import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import cqm3ron.permits.item.ModItems;
@@ -45,31 +40,85 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
 
         dispatcher.register(
             CommandManager.literal("permit")
-            .then(CommandManager.literal("give")
-                    .requires(cs -> cs.hasPermissionLevel(2))
-                    .executes(context -> {
-                    var player = context.getSource().getPlayer();
-                    assert player != null;
-                    ItemStack permit = new ItemStack(ModItems.PERMIT, 1);
+                    .then(CommandManager.literal("give")
+                            .requires(cs -> cs.hasPermissionLevel(2))
+                            // No arguments: just give a blank permit
+                            .executes(context -> {
+                                var player = context.getSource().getPlayer();
+                                if (player == null) {
+                                    context.getSource().sendError(Text.literal("§cOnly players can receive permits."));
+                                    return 0;
+                                }
 
-                    permit.set(DataComponentTypes.EQUIPPABLE, new EquippableComponent(
-                            EquipmentSlot.HEAD,                                     // slot
-                            RegistryEntry.of(SoundEvents.ITEM_ARMOR_EQUIP_GENERIC.value()), // equip sound
-                            Optional.empty(),                                       // assetId
-                            Optional.empty(),                                       // camera overlay
-                            Optional.empty(),                                       // allowed entities
-                            true,                                                   // dispensable
-                            true,                                                   // swappable
-                            true,                                                   // damage on hurt
-                            true,                                                   // equip on interact
-                            false,                                                  // can be sheared
-                            RegistryEntry.of(SoundEvents.ITEM_SHEARS_SNIP)         // shearing sound
-                    ));
+                                ItemStack permit = new ItemStack(ModItems.PERMIT, 1);
+                                player.giveOrDropStack(permit);
+                                context.getSource().sendFeedback(() -> Text.literal("§aGave a blank permit."), false);
+                                return 1;
+                            })
+                            // Optional rarity argument
+                            .then(CommandManager.argument("rarity", StringArgumentType.word())
+                                    .suggests(RARITY_SUGGESTIONS)
+                                    .executes(context -> {
+                                        var player = context.getSource().getPlayer();
+                                        if (player == null) return 0;
 
-                    player.giveOrDropStack(permit);
-                    return 1;
-                })
-            )
+                                        String rarity = StringArgumentType.getString(context, "rarity").toLowerCase();
+
+                                        if (!rarity.equals("iron") && !rarity.equals("gold") && !rarity.equals("diamond")
+                                                && !rarity.equals("kermit") && !rarity.equals("blank")) {
+                                            context.getSource().sendError(Text.literal("§cInvalid rarity. Allowed: iron, gold, diamond, kermit, blank."));
+                                            return 0;
+                                        }
+
+                                        ItemStack permit = new ItemStack(ModItems.PERMIT, 1);
+                                        permit.set(PERMIT_RARITY, rarity);
+
+                                        player.giveOrDropStack(permit);
+                                        context.getSource().sendFeedback(() -> Text.literal("§aGave a " + rarity + " permit."), false);
+                                        return 1;
+                                    })
+                                    // Optional name argument
+                                    .then(CommandManager.argument("name", StringArgumentType.greedyString())
+                                            .executes(context -> {
+                                                var player = context.getSource().getPlayer();
+                                                if (player == null) return 0;
+
+                                                String rarity = StringArgumentType.getString(context, "rarity").toLowerCase();
+                                                String inputName = StringArgumentType.getString(context, "name").trim().toUpperCase();
+
+                                                if (!rarity.equals("iron") && !rarity.equals("gold") && !rarity.equals("diamond")
+                                                        && !rarity.equals("kermit") && !rarity.equals("blank")) {
+                                                    context.getSource().sendError(Text.literal("§cInvalid rarity. Allowed: iron, gold, diamond, kermit, blank."));
+                                                    return 0;
+                                                }
+
+                                                ItemStack permit = new ItemStack(ModItems.PERMIT, 1);
+                                                permit.set(PERMIT_RARITY, rarity);
+
+                                                if (!inputName.isEmpty()) {
+                                                    Formatting color = switch (rarity) {
+                                                        case "iron" -> Formatting.GRAY;
+                                                        case "gold" -> Formatting.GOLD;
+                                                        case "diamond" -> Formatting.AQUA;
+                                                        case "kermit" -> Formatting.GREEN;
+                                                        default -> Formatting.WHITE;
+                                                    };
+
+                                                    Text customName = Text.literal("✦ " + inputName + " ✦")
+                                                            .styled(s -> s.withColor(color).withBold(true).withItalic(false));
+                                                    permit.set(DataComponentTypes.CUSTOM_NAME, customName);
+                                                }
+
+                                                player.giveOrDropStack(permit);
+                                                context.getSource().sendFeedback(() -> Text.literal("§aGave permit " + (inputName.isEmpty() ? "" : "'" + inputName + "'")), false);
+                                                return 1;
+                                            })
+                                    )
+                            )
+                    )
+
+
+
                     .then(CommandManager.literal("claim")
                             .executes(context -> {
                                 var player = context.getSource().getPlayer();
