@@ -1,14 +1,25 @@
 package cqm3ron.permits.item;
 
 import cqm3ron.permits.component.ModDataComponentTypes;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.EquippableComponent;
 import net.minecraft.component.type.TooltipDisplayComponent;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.inventory.StackReference;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.tooltip.TooltipType;
+import net.minecraft.registry.Registries;
+import net.minecraft.screen.slot.Slot;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
+import net.minecraft.util.ClickType;
 import net.minecraft.util.Formatting;
+import net.minecraft.world.World;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 public class PermitItem extends Item {
@@ -78,5 +89,35 @@ public class PermitItem extends Item {
         super(settings);
     }
 
+
+    private static void ensureEquippable(ItemStack stack) {
+        if (!stack.hasChangedComponent(DataComponentTypes.EQUIPPABLE)) {
+            stack.set(DataComponentTypes.EQUIPPABLE, new EquippableComponent(
+                    EquipmentSlot.HEAD,
+                    SoundEvents.ITEM_ARMOR_EQUIP_GENERIC,
+                    Optional.empty(),
+                    Optional.empty(),
+                    Optional.empty(),
+                    false, // dispensable
+                    true,  // swappable
+                    false, // damageOnHurt
+                    true,  // equipOnInteract
+                    false, // canBeSheared
+                    Registries.SOUND_EVENT.getEntry(SoundEvents.ITEM_SHEARS_SNIP)
+            ));
+        }
+    }
+
+    @Override
+    public void onCraft(ItemStack stack, World world) {
+        super.onCraft(stack, world);
+        ensureEquippable(stack);
+    }
+
+    @Override
+        public boolean onClicked(ItemStack stack, ItemStack otherStack, Slot slot, ClickType clickType, PlayerEntity player, StackReference cursorStackReference) {
+        ensureEquippable(stack);
+        return super.onClicked(stack, otherStack, slot, clickType, player, cursorStackReference);
+    }
 
 }

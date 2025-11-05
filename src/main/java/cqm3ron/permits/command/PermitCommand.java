@@ -8,19 +8,25 @@ import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.command.argument.ItemStackArgumentType;
 import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.EquippableComponent;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.inventory.Inventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import cqm3ron.permits.item.ModItems;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.Predicate;
 
 import static cqm3ron.permits.component.ModDataComponentTypes.*;
 
@@ -51,6 +57,20 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
                                 }
 
                                 ItemStack permit = new ItemStack(ModItems.PERMIT, 1);
+                                permit.set(DataComponentTypes.EQUIPPABLE,     new EquippableComponent(
+                                                EquipmentSlot.HEAD,                            // slot:"head"
+                                                SoundEvents.ITEM_ARMOR_EQUIP_GENERIC,          // equip_sound:"item.armor.equip_generic"
+                                                Optional.empty(),                              // assetId
+                                                Optional.empty(),                              // cameraOverlay
+                                                Optional.empty(),                              // allowedEntities
+                                                false,                                         // dispensable
+                                                true,                                          // swappable:true
+                                                false,                                         // damageOnHurt
+                                                true,                                          // equip_on_interact:true
+                                                false,
+                                        Registries.SOUND_EVENT.getEntry(SoundEvents.ITEM_SHEARS_SNIP)
+                                        )
+                                );
                                 player.giveOrDropStack(permit);
                                 context.getSource().sendFeedback(() -> Text.literal("§aGave a blank permit."), false);
                                 return 1;
@@ -72,6 +92,21 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
 
                                         ItemStack permit = new ItemStack(ModItems.PERMIT, 1);
                                         permit.set(PERMIT_RARITY, rarity);
+                                        permit.set(DataComponentTypes.EQUIPPABLE,     new EquippableComponent(
+                                                        EquipmentSlot.HEAD,                            // slot:"head"
+                                                        SoundEvents.ITEM_ARMOR_EQUIP_GENERIC,          // equip_sound:"item.armor.equip_generic"
+                                                        Optional.empty(),                              // assetId
+                                                        Optional.empty(),                              // cameraOverlay
+                                                        Optional.empty(),                              // allowedEntities
+                                                        false,                                         // dispensable
+                                                        true,                                          // swappable:true
+                                                        false,                                         // damageOnHurt
+                                                        true,                                          // equip_on_interact:true
+                                                        false,
+                                                        Registries.SOUND_EVENT.getEntry(SoundEvents.ITEM_SHEARS_SNIP)
+                                                )
+                                        );
+
 
                                         player.giveOrDropStack(permit);
                                         context.getSource().sendFeedback(() -> Text.literal("§aGave a " + rarity + " permit."), false);
@@ -96,18 +131,27 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
                                                 permit.set(PERMIT_RARITY, rarity);
 
                                                 if (!inputName.isEmpty()) {
-                                                    Formatting color = switch (rarity) {
-                                                        case "iron" -> Formatting.GRAY;
-                                                        case "gold" -> Formatting.GOLD;
-                                                        case "diamond" -> Formatting.AQUA;
-                                                        case "kermit" -> Formatting.GREEN;
-                                                        default -> Formatting.WHITE;
-                                                    };
+                                                    Formatting color = getColor(rarity);
 
                                                     Text customName = Text.literal("✦ " + inputName + " ✦")
                                                             .styled(s -> s.withColor(color).withBold(true).withItalic(false));
                                                     permit.set(DataComponentTypes.CUSTOM_NAME, customName);
                                                 }
+
+                                                permit.set(DataComponentTypes.EQUIPPABLE,     new EquippableComponent(
+                                                                EquipmentSlot.HEAD,                            // slot:"head"
+                                                                SoundEvents.ITEM_ARMOR_EQUIP_GENERIC,          // equip_sound:"item.armor.equip_generic"
+                                                                Optional.empty(),                              // assetId
+                                                                Optional.empty(),                              // cameraOverlay
+                                                                Optional.empty(),                              // allowedEntities
+                                                                false,                                         // dispensable
+                                                                true,                                          // swappable:true
+                                                                false,                                         // damageOnHurt
+                                                                true,                                          // equip_on_interact:true
+                                                                false,
+                                                                Registries.SOUND_EVENT.getEntry(SoundEvents.ITEM_SHEARS_SNIP)
+                                                        )
+                                                );
 
                                                 player.giveOrDropStack(permit);
                                                 context.getSource().sendFeedback(() -> Text.literal("§aGave permit " + (inputName.isEmpty() ? "" : "'" + inputName + "'")), false);
@@ -258,17 +302,7 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
                                         // Get rarity from your component (assumes it's stored as a string)
                                         String rarity = heldStack.get(PERMIT_RARITY); // adjust if your getter differs
 
-                                        Formatting color;
-                                        if (rarity == null) color = Formatting.WHITE;
-                                        else {
-                                            switch (rarity) {
-                                                case "iron" -> color = Formatting.GRAY;
-                                                case "gold" -> color = Formatting.GOLD;
-                                                case "diamond" -> color = Formatting.AQUA;
-                                                case "kermit" -> color = Formatting.GREEN;
-                                                default -> color = Formatting.WHITE;
-                                            }
-                                        }
+                                        Formatting color = getColor(rarity);
 
                                         // Build the Text name with ✦︎ on both sides and bold + chosen color
                                         Text customName = Text.literal("✦ " + inputName + " ✦")
@@ -276,7 +310,7 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
                                                         .withBold(true)
                                                         .withItalic(false));
 
-                                        // Set the custom name on the itemstack.
+                                        // Set the custom name on the item stack.
                                         // Use whichever method you used previously — example with DataComponentTypes.CUSTOM_NAME:
                                         heldStack.set(DataComponentTypes.CUSTOM_NAME, customName);
                                         // If you use setCustomName or another method, replace the line above accordingly.
@@ -450,14 +484,7 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
                                         Text currentName = heldStack.get(DataComponentTypes.CUSTOM_NAME);
                                         if (currentName != null) {
                                             // Determine new colour based on rarity
-                                            Formatting color;
-                                            switch (rarity) {
-                                                case "iron" -> color = Formatting.GRAY;
-                                                case "gold" -> color = Formatting.GOLD;
-                                                case "diamond" -> color = Formatting.AQUA;
-                                                case "kermit" -> color = Formatting.GREEN;
-                                                default -> color = Formatting.WHITE;
-                                            }
+                                            Formatting color = getColor(rarity);
 
                                             // Rebuild the display name with same text, new colour, and bold
                                             String nameText = currentName.getString().replaceAll("[✦︎]", "").trim(); // remove previous stars
@@ -480,7 +507,217 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
                             )
                     )
 
+                    .then(CommandManager.literal("unclaim")
+                            .requires(cs -> cs.hasPermissionLevel(3))
+
+                            // No arguments: unclaim the permit in hand
+                            .executes(context -> {
+                                var source = context.getSource();
+                                ServerPlayerEntity admin = source.getPlayer();
+                                if (admin == null) {
+                                    source.sendError(Text.literal("§cOnly players can use this command."));
+                                    return 0;
+                                }
+
+                                ItemStack heldStack = admin.getMainHandStack();
+                                if (heldStack.isEmpty() || !heldStack.isOf(ModItems.PERMIT)) {
+                                    source.sendError(Text.literal("§cYou must be holding a permit to unclaim it."));
+                                    return 0;
+                                }
+
+                                String owner = heldStack.get(PERMIT_OWNER);
+                                if (owner == null || owner.isEmpty()) {
+                                    source.sendError(Text.literal("§cThis permit is already unclaimed."));
+                                    return 0;
+                                }
+
+                                heldStack.set(PERMIT_OWNER, null);
+                                admin.setStackInHand(admin.getActiveHand(), heldStack);
+
+                                source.sendFeedback(() -> Text.literal("§aPermit unclaimed successfully."), false);
+                                return 1;
+                            })
+
+                            // /permit unclaim player <playerName>
+                                    .then(CommandManager.literal("player")
+                                            .then(CommandManager.argument("targetPlayer", EntityArgumentType.player())
+                                                    .executes(context -> {
+                                                        var source = context.getSource();
+                                                        ServerPlayerEntity admin = source.getPlayer();
+                                                        if (admin == null) {
+                                                            source.sendError(Text.literal("§cOnly players can use this command."));
+                                                            return 0;
+                                                        }
+
+                                                        // Get the player entity from the argument
+                                                        ServerPlayerEntity targetPlayer = EntityArgumentType.getPlayer(context, "targetPlayer");
+                                                        String targetName = targetPlayer.getName().getString().toLowerCase();
+
+                                                        int foundCount = 0;
+
+                                                        for (ServerPlayerEntity player : source.getServer().getPlayerManager().getPlayerList()) {
+                                                            // search player's inventory
+                                                            foundCount += searchAndTransferPermits(player.getInventory(), player, admin, stack -> {
+                                                                String owner = stack.get(PERMIT_OWNER);
+                                                                return owner != null && owner.toLowerCase().contains(targetName);
+                                                            });
+
+                                                            // search ender chest
+                                                            foundCount += searchAndTransferPermits(player.getEnderChestInventory(), player, admin, stack -> {
+                                                                String owner = stack.get(PERMIT_OWNER);
+                                                                return owner != null && owner.toLowerCase().contains(targetName);
+                                                            });
+                                                        }
+
+                                                        if (foundCount > 0) {
+                                                            int finalFoundCount = foundCount;
+                                                            source.sendFeedback(() -> Text.literal("§aRecovered " + finalFoundCount + " permit(s) owned by " + targetName + "."), false);
+                                                        } else {
+                                                            source.sendError(Text.literal("§cNo permits found for " + targetName + "."));
+                                                        }
+
+                                                        return foundCount > 0 ? 1 : 0;
+                                                    })
+                                            )
+                                    )
+
+
+                            // /permit unclaim item <itemID>
+                            .then(CommandManager.literal("item")
+                                    .then(CommandManager.argument("itemID", StringArgumentType.word())
+                                            .suggests((context, builder) -> {
+                                                Registries.ITEM.forEach(item -> builder.suggest(Registries.ITEM.getId(item).toString()));
+                                                return builder.buildFuture();
+                                            })
+                                            .executes(context -> {
+                                                var source = context.getSource();
+                                                ServerPlayerEntity admin = source.getPlayer();
+                                                if (admin == null) {
+                                                    source.sendError(Text.literal("§cOnly players can use this command."));
+                                                    return 0;
+                                                }
+
+                                                String itemId = StringArgumentType.getString(context, "itemID").toLowerCase();
+                                                int foundCount = 0;
+
+                                                for (ServerPlayerEntity player : source.getServer().getPlayerManager().getPlayerList()) {
+                                                    foundCount += searchAndTransferPermits(player.getInventory(), player, admin, stack -> {
+                                                        List<Item> items = stack.get(PERMIT_ITEMS);
+                                                        if (items == null) return false;
+                                                        return items.stream().anyMatch(i ->
+                                                                Registries.ITEM.getId(i).toString().toLowerCase().contains(itemId));
+                                                    });
+
+                                                    foundCount += searchAndTransferPermits(player.getEnderChestInventory(), player, admin, stack -> {
+                                                        List<Item> items = stack.get(PERMIT_ITEMS);
+                                                        if (items == null) return false;
+                                                        return items.stream().anyMatch(i ->
+                                                                Registries.ITEM.getId(i).toString().toLowerCase().contains(itemId));
+                                                    });
+                                                }
+
+                                                if (foundCount > 0) {
+                                                    int finalFoundCount = foundCount;
+                                                    source.sendFeedback(() -> Text.literal("§aRecovered " + finalFoundCount + " permit(s) with item " + itemId + "."), false);
+                                                }
+                                                else
+                                                    source.sendError(Text.literal("§cNo permits found containing " + itemId + "."));
+                                                return foundCount > 0 ? 1 : 0;
+                                            })
+                                    )
+                            )
+
+                            // /permit unclaim name <permitName>
+                            .then(CommandManager.literal("name")
+                                    .then(CommandManager.argument("permitName", StringArgumentType.greedyString())
+                                            .executes(context -> {
+                                                var source = context.getSource();
+                                                ServerPlayerEntity admin = source.getPlayer();
+                                                if (admin == null) {
+                                                    source.sendError(Text.literal("§cOnly players can use this command."));
+                                                    return 0;
+                                                }
+
+                                                // normalize name: remove stars/formatting, trim, lowercase
+                                                String nameFilter = StringArgumentType.getString(context, "permitName")
+                                                        .replaceAll("[✦§]", "")
+                                                        .trim()
+                                                        .toLowerCase();
+
+                                                int foundCount = 0;
+
+                                                for (ServerPlayerEntity player : source.getServer().getPlayerManager().getPlayerList()) {
+                                                    foundCount += searchAndTransferPermits(player.getInventory(), player, admin, stack -> {
+                                                        Text n = stack.get(DataComponentTypes.CUSTOM_NAME);
+                                                        if (n == null) return false;
+                                                        String cleaned = n.getString().replaceAll("[✦§]", "").trim().toLowerCase();
+                                                        return cleaned.contains(nameFilter);
+                                                    });
+
+                                                    foundCount += searchAndTransferPermits(player.getEnderChestInventory(), player, admin, stack -> {
+                                                        Text n = stack.get(DataComponentTypes.CUSTOM_NAME);
+                                                        if (n == null) return false;
+                                                        String cleaned = n.getString().replaceAll("[✦§]", "").trim().toLowerCase();
+                                                        return cleaned.contains(nameFilter);
+                                                    });
+                                                }
+
+                                                if (foundCount > 0) {
+                                                    int finalFoundCount = foundCount;
+                                                    source.sendFeedback(() -> Text.literal("§aRecovered " + finalFoundCount + " permit(s) named '" + nameFilter + "'."), false);
+                                                }
+                                                else
+                                                    source.sendError(Text.literal("§cNo permits found with that name."));
+                                                return foundCount > 0 ? 1 : 0;
+                                            })
+                                    )
+                            )
+                    )
+
+
+
         );
 
     }
+
+    private static @NotNull Formatting getColor(String rarity) {
+        Formatting color;
+        if (rarity == null)
+        {
+            color = Formatting.WHITE;
+            return color;
+        }
+        switch (rarity) {
+            case "iron" -> color = Formatting.GRAY;
+            case "gold" -> color = Formatting.GOLD;
+            case "diamond" -> color = Formatting.AQUA;
+            case "kermit" -> color = Formatting.GREEN;
+            default -> color = Formatting.WHITE;
+        }
+        return color;
+    }
+
+    private static int searchAndTransferPermits(Inventory inv, ServerPlayerEntity owner, ServerPlayerEntity admin, Predicate<ItemStack> match) {
+        int found = 0;
+        for (int i = 0; i < inv.size(); i++) {
+            ItemStack stack = inv.getStack(i);
+            if (stack != null && !stack.isEmpty() && stack.isOf(ModItems.PERMIT) && match.test(stack)) {
+                // clear ownership
+                stack.set(PERMIT_OWNER, null);
+
+                // make a copy to transfer and remove original
+                ItemStack toGive = stack.copy();
+                inv.setStack(i, ItemStack.EMPTY);
+
+                boolean added = admin.getInventory().insertStack(toGive);
+                if (!added) admin.dropItem(toGive, false);
+
+                admin.sendMessage(Text.literal("§aRecovered permit from " + owner.getName().getString() + "."));
+                found++;
+            }
+        }
+        return found;
+    }
+
+
 }
