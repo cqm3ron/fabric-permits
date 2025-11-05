@@ -450,6 +450,70 @@ private static final SuggestionProvider<ServerCommandSource> RARITY_SUGGESTIONS 
                             )
                     )
 
+                    .then(CommandManager.literal("remove")
+                            .requires(cs -> cs.hasPermissionLevel(2))
+                            .then(CommandManager.argument("item", ItemStackArgumentType.itemStack(registryAccess))
+                                    .suggests((context, builder) -> {
+                                        var player = context.getSource().getPlayer();
+                                        assert player != null;
+                                        ItemStack heldStack = player.getMainHandStack();
+                                        List<Item> currentItems = heldStack.get(PERMIT_ITEMS);
+                                        if (currentItems == null) currentItems = List.of();
+
+                                        final String remaining = builder.getRemaining().toLowerCase();
+                                        List<Item> finalItems = currentItems;
+                                        Registries.ITEM.forEach(item -> {
+                                            String id = Registries.ITEM.getId(item).toString();
+                                            if (id.toLowerCase().contains(remaining) && finalItems.contains(item)) {
+                                                builder.suggest(id);
+                                            }
+                                        });
+
+                                        return builder.buildFuture();
+                                    })
+                                    .executes(context -> {
+                                        try {
+                                            var player = context.getSource().getPlayer();
+                                            var itemInput = ItemStackArgumentType.getItemStackArgument(context, "item");
+                                            var itemStack = itemInput.createStack(1, false);
+                                            var itemToRemove = itemStack.getItem();
+
+                                            if (itemToRemove == null) {
+                                                context.getSource().sendError(Text.literal("§cItem not found!"));
+                                                return 0;
+                                            }
+
+                                            assert player != null;
+                                            ItemStack heldStack = player.getMainHandStack();
+                                            if (heldStack.isEmpty() || !heldStack.isOf(ModItems.PERMIT)) {
+                                                context.getSource().sendError(Text.literal("§cYou must be holding a permit item."));
+                                                return 0;
+                                            }
+
+                                            List<Item> permitItems = heldStack.get(PERMIT_ITEMS);
+                                            if (permitItems == null || !permitItems.contains(itemToRemove)) {
+                                                context.getSource().sendError(Text.literal("§cThis permit does not contain that item."));
+                                                return 0;
+                                            }
+
+                                            permitItems = new ArrayList<>(permitItems);
+                                            permitItems.remove(itemToRemove);
+                                            heldStack.set(PERMIT_ITEMS, permitItems);
+                                            player.setStackInHand(player.getActiveHand(), heldStack);
+
+                                            context.getSource().sendFeedback(() ->
+                                                    Text.literal("§aRemoved " + Registries.ITEM.getId(itemToRemove) + " from permit."), false);
+
+                                            return 1;
+                                        } catch (Exception e) {
+                                            context.getSource().sendError(Text.literal("§cError: " + e));
+                                            return 0;
+                                        }
+                                    })
+                            )
+                    )
+
+
 
                     .then(CommandManager.literal("rarity")
                             .requires(cs -> cs.hasPermissionLevel(2))
